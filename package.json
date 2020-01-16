@@ -1,0 +1,16 @@
+{
+  "name": "kiwi-bundle-api-runtime",
+  "version": "1.0.0",
+  "author": "Nazim Lachter <nazim@blueforest.cc>",
+  "repository": "git@github.com:theblueforest/kiwi-bundle-api-runtime.git",
+  "license": "Apache-2.0",
+  "main": "./lib/index.js",
+  "scripts": {
+    "start": "kiwi start",
+    "test": "kiwi test",
+    "build": "kiwi build"
+  },
+  "devDependencies": {
+    "kiwi-bundle": "3.1.0"
+  }
+}
