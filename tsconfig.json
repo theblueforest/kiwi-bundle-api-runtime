@@ -1,5 +1,5 @@
 {
-  "extends": "./node_modules/kiwi-bundle/.models/ts/commonjs.json",
+  "extends": "./node_modules/kiwi-bundle/.models/ts/api.json",
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "lib",
