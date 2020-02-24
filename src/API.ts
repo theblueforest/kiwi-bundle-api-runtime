@@ -113,12 +113,15 @@ export class API {
       }, context.response.headers))
 
       response.write(isString ? context.response.body : JSON.stringify(context.response.body, (key, value) => {
-        if(typeof value === "function") return
-        if(typeof value === "object" && value !== null && value.constructor.name !== "Object") {
-          if(typeof value.toJSON === "function") return value.toJSON()
-          return
+        if(typeof value === "function") return {}
+        if(typeof value === "object"
+          && !Array.isArray(value)
+          && value.constructor.name !== "Object"
+          && typeof value.toJSON === "function"
+        ) {
+          return value.toJSON()
         }
-        return value // Types : bigint, boolean, number, object, string, symbol, undefined
+        return value // Types : null, bigint, boolean, number, object, string, symbol, undefined
       }))
 
       response.end()
