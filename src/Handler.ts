@@ -16,8 +16,10 @@ type ContextType<ResponseBody = any, Options extends HandlerOptions<Options> = a
   ResponseBody
 >
 
-export const Handler = <ResponseBody = any, Options extends HandlerOptions<Options> = any>(options: Options, execute: (context: ContextType<ResponseBody, Options>, options: Options) => { [method in ContextMethod]?: Promise<ResponseBody | void> }) => {
+export const Handler = <ResponseBody = any, Options extends HandlerOptions<Options> = any>(options: Options, execute: (context: ContextType<ResponseBody, Options>, options: Options) => { [method in ContextMethod]?: (Promise<ResponseBody | void> | (() => Promise<ResponseBody | void>)) }) => {
   return (context: ContextType<ResponseBody, Options>) => {
-    return execute(context, options)[context.method]
+    const output = execute(context, options)[context.method]
+    if(typeof output === "function") return output()
+    return output
   }
 }
