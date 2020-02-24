@@ -1,10 +1,10 @@
-import http from "http"
+import * as http from "http"
 import { join } from "path"
 import * as vm from "vm"
 import { Context } from "./Context"
 
 export type APIHandlers = {
-  [path: string]: {
+  [regex: string]: {
     path: string
     params: string[]
   }
@@ -20,12 +20,15 @@ export class API {
 
   setHandlers(handlers: { [path: string]: string }) {
     this.handlers = Object.keys(handlers).reduce((result, handlerPath) => {
-      let regexPath = handlerPath.replace(/\{.*?\}/g, "([A-Za-z0-9]+)")
-      regexPath += regexPath.charAt(regexPath.length - 1) === "/" ? "?" : "/?"
-      result["^" + regexPath + "$"] = {
-        path: handlers[handlerPath],
-        params: handlerPath.match(/\{.*?\}/g)?.map(c => c.slice(1, -1)) || [],
-      }
+      const params: string[] = []
+      const regex = handlerPath.split("/").reduce<string>((result, pathElement) => {
+        if(pathElement.charAt(0) === "{" && pathElement.charAt(pathElement.length - 1) === "}") {
+          params.push(pathElement.slice(1, -1))
+          return `${result}([A-Za-z0-9-_]+)\\/`
+        }
+        return `${result}${pathElement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\/`
+      }, "^") + "?$"
+      result[regex] = { path: handlers[handlerPath], params }
       return result
     }, {} as APIHandlers)
   }
@@ -51,31 +54,32 @@ export class API {
     for(let i = 0; i < paths.length; i++) {
       const handlerRegex = new RegExp(paths[i]).exec(context.url)
       if(handlerRegex !== null) {
-        const handler = this.handlers[paths[i]]
-        context.path = handler.path
-        context.params = handler.params.reduce((result, key, index) => {
-          result[key] = handlerRegex[index + 1]
-          return result
-        }, {} as any)
+        context.handler = {
+          path: this.handlers[paths[i]].path,
+          params: this.handlers[paths[i]].params.reduce((result, key, index) => {
+            result[key] = handlerRegex[index + 1]
+            return result
+          }, {} as any),
+        }
         break
       }
     }
 
     Promise.resolve(new Promise(resolve => {
-      if(typeof context.path === "undefined") {
+      if(typeof context.handler.path === "undefined") {
         resolve()
       } else {
-        import(join(this.path, context.path))
+        import(join(this.path, context.handler.path))
           .catch(() => {
-            console.log(`\n/!\\ Handler "${context.path}" not found`)
+            console.log(`\n/!\\ Handler "${context.handler.path}" not found`)
             resolve()
           })
           .then(handler => {
             if(typeof handler.default === "undefined") {
-              console.log(`\n/!\\ No default export on handler "${context.path}"`)
+              console.log(`\n/!\\ No default export on handler "${context.handler.path}"`)
               resolve()
             } else if(typeof handler.default !== "function") {
-              console.log(`\n/!\\ Default export on handler "${context.path}" is not a function`)
+              console.log(`\n/!\\ Default export on handler "${context.handler.path}" is not a function`)
               resolve()
             } else {
               const sandbox = vm.createContext({ handler, context })
@@ -84,12 +88,12 @@ export class API {
                 resolve()
               } else {
                 output.then(body => {
-                  context.body = body
+                  context.response.body = body
                   resolve()
                 }).catch(error => {
                   console.error("\n[ERROR]", error)
-                  context.code = 500
-                  context.body = "500 - Server error"
+                  context.response.code = 500
+                  context.response.body = "500 - Server error"
                   resolve()
                 })
               }
@@ -97,18 +101,18 @@ export class API {
           })
       }
     })).finally(() => {
-      if(typeof context.body === "undefined") {
-        context.code = 404
-        context.body = "404 - Not found"
+      if(typeof context.response.body === "undefined") {
+        context.response.code = 404
+        context.response.body = "404 - Not found"
       }
 
-      const isString = typeof context.body === "string"
+      const isString = typeof context.response.body === "string"
 
-      response.writeHead(context.code, Object.assign({
+      response.writeHead(context.response.code, Object.assign({
         "Content-Type": isString ? "text/plain" : "application/json",
-      }, context.responseHeaders))
+      }, context.response.headers))
 
-      response.write(isString ? context.body : JSON.stringify(context.body, (key, value) => {
+      response.write(isString ? context.response.body : JSON.stringify(context.response.body, (key, value) => {
         if(typeof value === "function") return
         if(typeof value === "object" && value !== null && value.constructor.name !== "Object") {
           if(typeof value.toJSON === "function") return value.toJSON()
@@ -120,8 +124,8 @@ export class API {
       response.end()
 
       console.log(`\n[${this.getDateString()}] <== Outgoing response for ${context.url}`)
-      if(typeof context.path !== "undefined") console.log(`Path : ${context.path}`)
-      console.log(`Code : ${context.code}`)
+      if(typeof context.handler.path !== "undefined") console.log(`Path : ${context.handler.path}`)
+      console.log(`Code : ${context.response.code}`)
       console.log(`Time : ${Date.now() - start}ms`)
     })
   }

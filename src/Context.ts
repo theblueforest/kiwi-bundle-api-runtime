@@ -1,4 +1,4 @@
-import http from "http"
+import * as http from "http"
 import { Readable } from "stream"
 import { parse } from "url"
 
@@ -6,28 +6,25 @@ export type ContextMethod = "GET"|"HEAD"|"POST"|"PUT"|"DELETE"|"CONNECT"|"OPTION
 
 type ContextAddListener = (event: string | symbol, listener: (...args: any[]) => void) => Readable
 
-export class Context<Params = {}, Body = {}> {
-  code: number = 200
-  readonly url: string
+export class Context<RequestHeaders extends ({ [name: string]: string } & { "content-type"?: string }) = any, RequestQuery extends { [name: string]: string } = any, RequestParams extends { [name: string]: string } = any, ResponseHeaders extends { [name: string]: string } = any, ResponseBody = any> {
   readonly method: ContextMethod
-  readonly headers: any = {}
-  readonly query: any = {}
+  readonly url: string
+  readonly headers: RequestHeaders
+  readonly query: RequestQuery
   private addListener: ContextAddListener
-  responseHeaders: any = {}
-  path?: string
-  params?: Params
-  body?: Body
+  handler: { path?: string, params?: RequestParams } = {}
+  response: { code: number, headers: ResponseHeaders, body?: ResponseBody } = { code: 200, headers: {} as any }
 
   constructor(request: http.IncomingMessage) {
     const url = parse(request.url as string, true)
-    this.url = url.pathname || "/"
     this.method = request.method as ContextMethod
-    this.headers = request.headers
-    this.query = Object.assign({}, url.query)
+    this.url = url.pathname || "/"
+    this.headers = request.headers as RequestHeaders
+    this.query = Object.assign({}, url.query) as RequestQuery
     this.addListener = request.on.bind(request)
   }
 
-  private parseBody(contentType: string, body: string) {
+  private parseBody(body: string, contentType?: string) {
     if(typeof contentType !== "undefined") {
 
       // application/json
@@ -67,7 +64,7 @@ export class Context<Params = {}, Body = {}> {
           body += chunk.toString()
         })
         this.addListener("end", () => {
-          resolve(this.parseBody(this.headers["content-type"], body))
+          resolve(this.parseBody(body, this.headers["content-type"]))
         })
       }
     })
@@ -75,13 +72,15 @@ export class Context<Params = {}, Body = {}> {
 
   toJSON() {
     return {
-      code: this.code,
-      url: this.url,
       method: this.method,
+      url: this.url,
       headers: this.headers,
       query: this.query,
-      path: this.path,
-      params: this.params,
+      handler: this.handler,
+      response: {
+        code: this.response.code,
+        headers: this.response.headers,
+      },
     }
   }
 
