@@ -1,11 +1,13 @@
 import { Context, ContextMethod } from "./Context"
 import * as DROPin from "dropin-recipes"
 
+type OptionsParams = { name?: string }
+
 interface HandlerOptions<Data extends HandlerOptions<Data>> {
-  requestHeaders?: DROPin.KeysObject<{ name: string }, Data["requestHeaders"]>
-  query?: DROPin.KeysObject<{ name: string }, Data["query"]>
-  params?: DROPin.KeysObject<{ name: string }, Data["params"]>
-  responseHeaders?: DROPin.KeysObject<{ name: string }, Data["responseHeaders"]>
+  requestHeaders?: DROPin.KeysObject<OptionsParams, Data["requestHeaders"]>
+  query?: DROPin.KeysObject<OptionsParams, Data["query"]>
+  params?: DROPin.KeysObject<OptionsParams, Data["params"]>
+  responseHeaders?: DROPin.KeysObject<OptionsParams, Data["responseHeaders"]>
 }
 
 type ContextType<ResponseBody = any, Options extends HandlerOptions<Options> = any> = Context<

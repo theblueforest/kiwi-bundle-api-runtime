@@ -91,9 +91,15 @@ export class API {
                   context.response.body = body
                   resolve()
                 }).catch(error => {
-                  console.error("\n[ERROR]", error)
-                  context.response.code = 500
-                  context.response.body = "500 - Server error"
+                  if(typeof error !== "undefined") {
+                    console.error("\n[ERROR]", error)
+                  }
+                  if(typeof context.response.code === "undefined") {
+                    context.response.code = 500
+                  }
+                  if(typeof context.response.body === "undefined") {
+                    context.response.body = "500 - Server error"
+                  }
                   resolve()
                 })
               }
@@ -102,28 +108,41 @@ export class API {
       }
     })).finally(() => {
       if(typeof context.response.body === "undefined") {
-        context.response.code = 404
         context.response.body = "404 - Not found"
+        if(typeof context.response.code === "undefined") {
+          context.response.code = 404
+        }
+      } else if(typeof context.response.code === "undefined") {
+        context.response.code = 200
       }
 
-      const isString = typeof context.response.body === "string"
+      const bodyIsString = typeof context.response.body === "string"
 
-      response.writeHead(context.response.code, Object.assign({
-        "Content-Type": isString ? "text/plain" : "application/json",
-      }, context.response.headers))
+      if(typeof context.response.headers === "undefined"
+          || (typeof context.response.headers["content-type"] === "undefined"
+            && typeof context.response.headers["Content-Type"] === "undefined")
+      ) {
+        context.response.headers = Object.assign({
+          "content-type": bodyIsString ? "text/plain" : "application/json"
+        }, context.response.headers)
+      }
 
-      response.write(isString ? context.response.body : JSON.stringify(context.response.body, (key, value) => {
-        if(typeof value === "function") return {}
-        if(typeof value === "object"
-          && !Array.isArray(value)
-          && value.constructor.name !== "Object"
-          && typeof value.toJSON === "function"
-        ) {
-          return value.toJSON()
-        }
-        return value // Types : null, bigint, boolean, number, object, string, symbol, undefined
-      }))
+      if(!bodyIsString) {
+        context.response.body = JSON.stringify(context.response.body, (key, value) => {
+          if(typeof value === "function") return {}
+          if(typeof value === "object"
+            && !Array.isArray(value)
+            && value.constructor.name !== "Object"
+            && typeof value.toJSON === "function"
+          ) {
+            return value.toJSON()
+          }
+          return value // Types : null, bigint, boolean, number, object, string, symbol, undefined
+        })
+      }
 
+      response.writeHead(context.response.code, context.response.headers)
+      response.write(context.response.body)
       response.end()
 
       console.log(`\n[${this.getDateString()}] <== Outgoing response for ${context.url}`)

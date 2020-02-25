@@ -13,7 +13,7 @@ export class Context<RequestHeaders extends ({ [name: string]: string } & { "con
   readonly query: RequestQuery
   private addListener: ContextAddListener
   handler: { path?: string, params?: RequestParams } = {}
-  response: { code: number, headers: ResponseHeaders, body?: ResponseBody } = { code: 200, headers: {} as any }
+  response: { code?: number, headers?: ResponseHeaders, body?: ResponseBody } = {}
 
   constructor(request: http.IncomingMessage) {
     const url = parse(request.url as string, true)
