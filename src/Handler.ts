@@ -1,5 +1,6 @@
 import { Context, ContextMethod } from "./Context"
 import * as DROPin from "dropin-recipes"
+import { NameField } from "dropin-recipes"
 
 type OptionsParams = { name?: string }
 
@@ -25,3 +26,22 @@ export const Handler = <ResponseBody = any, Options extends HandlerOptions<Optio
     return output
   }
 }
+
+/*interface HandlerOptions<ResponseBody> {
+  name?: NameField
+  http?: {
+    [method in ContextMethod]?: {
+      name?: NameField
+      run: (context: Context) => Promise<ResponseBody | void>
+    }
+  }
+}
+
+export const Handler = <ResponseBody = any>(options: HandlerOptions<ResponseBody>) => {
+  return (context: Context): Promise<ResponseBody | void> => {
+    if(typeof options.http !== "undefined" && typeof options.http[context.method] !== "undefined") {
+      return options.http[context.method].run(context)
+    }
+    return Promise.resolve()
+  }
+}*/
